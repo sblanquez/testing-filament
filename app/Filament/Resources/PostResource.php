@@ -9,6 +9,7 @@ use App\Models\Post;
 use Filament\Forms;
 use Filament\Forms\Components\ColorPicker;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Group;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\MarkdownEditor;
 use Filament\Forms\Components\Section;
@@ -37,40 +38,58 @@ class PostResource extends Resource
     {
         return $form
             ->schema([
-                Hidden::make('user_id')
-                    ->default(function() {
-                    $userId = auth()->id();
-                    if (!$userId) {
-                        throw new \Exception('No user authenticated');
-                    }
-                    return $userId;
-                })
-                    ->required(),
+                Section::make('Post Information')
+                    ->description('Add information about your post here')
+                    ->schema([
+                            Hidden::make('user_id')
+                            ->default(function() {
+                            $userId = auth()->user()->id;
+                            if (!$userId) {
+                                throw new \Exception('No user authenticated');
+                            }
+                            return $userId;
+                            })
+                            ->required(),
 
-                Section::make('Post Details'),
-                TextInput::make('title')->required(),
-                TextInput::make('slug')->required(),
-                ColorPicker::make('color')->required(),
+                            TextInput::make('title')->required(),
+                            TextInput::make('slug')->required(),
+                            ColorPicker::make('color')->required(),
+                            Select::make('category_id')
+                                ->label('Category')
+                                ->options(Category::all()->pluck('name', 'id'))
+                                ->searchable()
+                                ->required(),
 
-                MarkdownEditor::make('content')
-                    ->required()
-                    ->columnSpanFull(),
+                            MarkdownEditor::make('content')
+                                ->required()
+                                ->columnSpanFull(),
 
-                FileUpload::make('thumbnail')
-                    ->image(),
+                            ])
+                            ->columns(2)
+                            ->columnSpan(2),
+                
+                Group::make()
+                ->schema([
+                    Section::make('Image')
+                    ->schema([
+                        FileUpload::make('thumbnail')
+                            ->disk('public')
+                            ->image(),
+                    ]),       
+                    
+                    Section::make('Meta')
+                    ->schema([
+                            TagsInput::make('tags')->required(),
 
-                Select::make('category_id')
-                    ->label('Category')
-                    ->options(Category::all()->pluck('name', 'id'))
-                    ->searchable()
-                    ->required(),
-                TagsInput::make('tags')->required(),
+                            Toggle::make('published')
+                                ->onIcon('heroicon-o-check-circle')
+                                ->offIcon('heroicon-o-x-circle')
+                                ->onColor('success')
+                                ->inline(false),
+                            
+                            ]),
+                        ])
 
-                Toggle::make('published')
-                    ->onIcon('heroicon-o-check-circle')
-                    ->offIcon('heroicon-o-x-circle')
-                    ->onColor('success')
-                    ->inline(false),
             ])
             ->columns(3);
     }
@@ -82,7 +101,9 @@ class PostResource extends Resource
                 TextColumn::make('title'),
                 TextColumn::make('user.name'),
                 TextColumn::make('slug'),
-                ImageColumn::make('thumbnail')->circular(),
+                ImageColumn::make('thumbnail')
+                    ->disk('public')
+                    ->circular(),
                 ColorColumn::make('color'),
                 ToggleColumn::make('published'),
                 TextColumn::make('created_at')->dateTime(),
